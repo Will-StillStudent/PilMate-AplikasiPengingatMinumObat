@@ -207,8 +207,15 @@ export default function History({ isOnline = true }) {
     // Current month days
     for (let d = 1; d <= totalDays; d++) {
       const dObj = new Date(year, month, d);
-      const dateStr = dObj.toISOString().slice(0, 10);
-      const hasDoses = logs.some(l => (l.acted_at || l.scheduled_at || '').slice(0, 10) === dateStr);
+      // Use local date string (year/month/day from local date object, not UTC)
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const hasDoses = logs.some(l => {
+        const raw = l.acted_at || l.scheduled_at || '';
+        if (!raw) return false;
+        const ld = new Date(raw);
+        const logLocal = `${ld.getFullYear()}-${String(ld.getMonth() + 1).padStart(2, '0')}-${String(ld.getDate()).padStart(2, '0')}`;
+        return logLocal === dateStr;
+      });
       const isSelected = calendarDate.toDateString() === dObj.toDateString();
       days.push({
         day: d,
@@ -227,8 +234,16 @@ export default function History({ isOnline = true }) {
   }, [calendarDate, logs]);
 
   const selectedDayLogs = useMemo(() => {
-    const dateStr = calendarDate.toISOString().slice(0, 10);
-    return logs.filter(l => (l.acted_at || l.scheduled_at || '').slice(0, 10) === dateStr);
+    // Use local date string for calendar date to avoid UTC offset mismatch
+    const cd = calendarDate;
+    const dateStr = `${cd.getFullYear()}-${String(cd.getMonth() + 1).padStart(2, '0')}-${String(cd.getDate()).padStart(2, '0')}`;
+    return logs.filter(l => {
+      const raw = l.acted_at || l.scheduled_at || '';
+      if (!raw) return false;
+      const d = new Date(raw);
+      const logLocal = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return logLocal === dateStr;
+    });
   }, [calendarDate, logs]);
 
   return (

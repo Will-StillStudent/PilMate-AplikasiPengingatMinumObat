@@ -691,7 +691,8 @@ export const api = {
           const logs = logsRes.data || [];
           const now = new Date();
           const currentDay = now.getDay();
-          const todayDateStr = now.toISOString().slice(0, 10);
+          // Use local date string to avoid UTC offset shifting date (e.g. 17:00 WIB = next day UTC)
+          const todayDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
           const todayDoses = [];
 
           meds.forEach(med => {
@@ -710,9 +711,20 @@ export const api = {
               if (days.includes(currentDay)) {
                 const remTimeShort = (rem.time || '08:00').substring(0, 5);
                 const logEntry = logs.find(l => {
-                  if (l.medication_id === med.id) {
-                    const s = l.scheduled_at || l.acted_at || '';
-                    return s.includes(todayDateStr) && s.includes(remTimeShort);
+                  if (l.medication_id !== med.id) return false;
+                  // Use scheduled_at first (most reliable), fall back to acted_at
+                  const s = l.scheduled_at || l.acted_at || '';
+                  if (!s) return false;
+                  const logD = new Date(s);
+                  // Compare local date
+                  const logLocalDate = `${logD.getFullYear()}-${String(logD.getMonth() + 1).padStart(2, '0')}-${String(logD.getDate()).padStart(2, '0')}`;
+                  if (logLocalDate !== todayDateStr) return false;
+                  // Compare local time extracted from scheduled_at
+                  const sched = l.scheduled_at;
+                  if (sched) {
+                    const sd = new Date(sched);
+                    const schedLocalTime = `${String(sd.getHours()).padStart(2, '0')}:${String(sd.getMinutes()).padStart(2, '0')}`;
+                    return schedLocalTime === remTimeShort;
                   }
                   return false;
                 });
@@ -746,8 +758,12 @@ export const api = {
 
           // Dosis tambahan (extra) hari ini
           logs.forEach(l => {
-            const logDate = (l.acted_at || l.scheduled_at || '').slice(0, 10);
-            if (logDate === todayDateStr && l.status === 'extra') {
+            const logDateRaw = l.acted_at || l.scheduled_at || '';
+            const logLocalDate = logDateRaw ? (() => {
+              const d = new Date(logDateRaw);
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            })() : '';
+            if (logLocalDate === todayDateStr && l.status === 'extra') {
               const med = meds.find(m => m.id === l.medication_id);
               let timeStr = '00:00';
               try {
@@ -878,7 +894,8 @@ export const api = {
           .update({
             status: data.status,
             amount: Number(data.amount) || 1,
-            note: data.note || null
+            note: data.note || null,
+            acted_at: new Date().toISOString()
           })
           .eq('id', id)
           .select()

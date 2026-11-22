@@ -6,31 +6,32 @@ export default function DoseItem({
   dose,
   onSetStatus,
   disabled = false,
+  isSaving = false,
   isFirst = false,
   isLast = false
 }) {
-  const isTaken = dose.status === 'taken';
+  const isTaken  = dose.status === 'taken' || dose.status === 'extra';
   const isSkipped = dose.status === 'skipped';
-  const isDue = dose.status === 'due';
+  const isDue    = dose.status === 'due';
 
-  // Tampilan Simpul Lingkaran di Sisi Kiri (1.png)
+  // Warna & ikon node kiri berdasarkan status
   let nodeIcon;
-  let nodeBg = '#b8c9ea';
+  let nodeBg    = '#b8c9ea';
   let nodeColor = '#041e49';
 
   if (isTaken) {
-    nodeBg = '#b8c9ea';
-    nodeColor = '#003355';
-    nodeIcon = (
+    nodeBg    = '#d3f4de';
+    nodeColor = '#1a6e35';
+    nodeIcon  = (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <polyline points="16 9 10 15 8 13" />
       </svg>
     );
   } else if (isSkipped) {
-    nodeBg = '#b8c9ea';
+    nodeBg    = '#ffdad6';
     nodeColor = '#ba1a1a';
-    nodeIcon = (
+    nodeIcon  = (
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10" />
         <line x1="15" y1="9" x2="9" y2="15" />
@@ -38,9 +39,9 @@ export default function DoseItem({
       </svg>
     );
   } else if (isDue) {
-    nodeBg = '#ffdad6';
-    nodeColor = '#ba1a1a';
-    nodeIcon = (
+    nodeBg    = '#fff0d6';
+    nodeColor = '#a05c00';
+    nodeIcon  = (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="13" r="8" />
         <polyline points="12 9 12 13 14 15" />
@@ -49,10 +50,10 @@ export default function DoseItem({
       </svg>
     );
   } else {
-    // Pending (1.png)
-    nodeBg = '#b8c9ea';
+    // Pending
+    nodeBg    = '#b8c9ea';
     nodeColor = '#041e49';
-    nodeIcon = (
+    nodeIcon  = (
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
         <path d="M13.73 21a2 2 0 0 1-3.46 0" />
@@ -60,26 +61,38 @@ export default function DoseItem({
     );
   }
 
-  // Aksi Klik Lingkaran Sebelah Kiri:
-  // Jika pending/due -> langsung menjadi Taken (Centang ✔)
-  // Jika sudah taken -> berganti menjadi Skipped (Silang ✖)
-  // Jika skipped -> kembali ke Pending (Lonceng 🔔)
+  // Spinner saat menyimpan
+  const spinnerIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" strokeDasharray="28 56">
+        <animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="0.8s" repeatCount="indefinite" />
+      </circle>
+    </svg>
+  );
+
+  const isNodeDisabled = disabled || isSaving;
+
+  // Siklus klik node kiri:
+  //   pending / due → taken
+  //   taken         → skipped
+  //   skipped       → pending  (hapus log di DB)
   const handleLeftNodeClick = (e) => {
     e.stopPropagation();
-    if (disabled || !onSetStatus) return;
+    if (isNodeDisabled || !onSetStatus) return;
 
     if (dose.status === 'pending' || dose.status === 'due') {
       onSetStatus('taken');
-    } else if (dose.status === 'taken') {
+    } else if (dose.status === 'taken' || dose.status === 'extra') {
       onSetStatus('skipped');
     } else {
+      // skipped → kembali ke pending (Today.jsx akan delete log-nya)
       onSetStatus('pending');
     }
   };
 
   return (
     <div className="timeline-item">
-      {/* Kolom Garis Timeline + Simpul Lingkaran di Sebelah Kiri untuk Klik (1.png) */}
+      {/* Garis Timeline + Node Kiri */}
       <div className="timeline-track">
         {!isFirst && <div className="timeline-line timeline-line-top" />}
         <button
@@ -89,25 +102,25 @@ export default function DoseItem({
             backgroundColor: nodeBg,
             color: nodeColor,
             border: 'none',
-            cursor: 'pointer',
+            cursor: isNodeDisabled ? 'not-allowed' : 'pointer',
             outline: 'none',
+            opacity: isSaving ? 0.65 : 1,
             transition: 'transform 0.15s ease, background-color 0.15s ease'
           }}
           onClick={handleLeftNodeClick}
           title={
-            isTaken
-              ? 'Status: Taken (Click to mark as Skipped)'
-              : isSkipped
-                ? 'Status: Skipped (Click to mark as Pending)'
-                : 'Click here to mark as Taken'
+            isTaken   ? 'Taken ✔ — click to mark as Skipped'   :
+            isSkipped ? 'Skipped ✖ — click to reset to Pending' :
+            isDue     ? 'Due ⏰ — click to mark as Taken'       :
+                        'Pending 🔔 — click to mark as Taken'
           }
         >
-          {nodeIcon}
+          {isSaving ? spinnerIcon : nodeIcon}
         </button>
         {!isLast && <div className="timeline-line timeline-line-bottom" />}
       </div>
 
-      {/* Gray Dose Schedule Card */}
+      {/* Card Obat — klik navigasi ke detail */}
       <Link
         to={`/medications/${dose.medication_id}`}
         className="timeline-card"
@@ -116,7 +129,7 @@ export default function DoseItem({
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', width: '100%' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            {/* Baris 1: Waktu & Ikon Kalender (1.png) */}
+            {/* Waktu & Ikon Kalender */}
             <div className="timeline-time-row">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
@@ -127,7 +140,7 @@ export default function DoseItem({
               <span>{formatTime(dose.time)}</span>
             </div>
 
-            {/* Baris 2: Nama Obat (Dosis) (Jumlah) (1.png) */}
+            {/* Nama Obat (Dosis) (Jumlah) */}
             <div className="timeline-title-row">
               <span className="timeline-med-name">{dose.medication_name}</span>
               {dose.dosage && <span className="timeline-med-dose"> ({dose.dosage})</span>}
@@ -135,7 +148,7 @@ export default function DoseItem({
             </div>
           </div>
 
-          {/* Sisi Kanan: Badge Logo Obat Berdasarkan Tags */}
+          {/* Badge Obat */}
           <MedIconBadge tags={dose.tags} name={dose.medication_name} color={dose.color} size={46} borderRadius={12} />
         </div>
       </Link>

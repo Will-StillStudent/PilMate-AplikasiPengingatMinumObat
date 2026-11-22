@@ -146,10 +146,10 @@ export default function App() {
         doses.forEach(dose => {
           const doseTime = (dose.time || '').substring(0, 5);
           
-          // Trigger alarm HANYA saat jam device tepat mencapai jam jadwal obat (currentTime === doseTime)
-          // dan status obat masih menunggu untuk diminum ('pending')
+          // Trigger alarm saat jam device tepat mencapai jam jadwal obat (currentTime === doseTime)
+          // dan status obat belum diambil/dilewati ('pending' atau 'due')
           const isTimeMatch = doseTime === currentTime;
-          const isActionable = dose.status === 'pending';
+          const isActionable = dose.status === 'pending' || dose.status === 'due';
 
           if (isActionable && isTimeMatch) {
             const reminderKey = `${dose.reminder_id || dose.medication_id}_${doseTime}_${now.toDateString()}`;
@@ -294,10 +294,15 @@ export default function App() {
                 style={{ flex: 1 }}
                 onClick={async () => {
                   try {
+                    const now = new Date();
+                    const [h, m] = (alertDose.time || '00:00').split(':');
+                    // Buat scheduled_at pakai local time agar matching di getToday() benar
+                    const schedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(h), Number(m), 0);
                     await api.createLog({
                       medication_id: alertDose.medication_id,
                       medication_name: alertDose.medication_name,
-                      scheduled_at: `${new Date().toISOString().slice(0, 10)}T${alertDose.time}:00.000Z`,
+                      scheduled_at: schedDate.toISOString(),
+                      acted_at: now.toISOString(),
                       status: 'taken',
                       amount: alertDose.amount || 1,
                       note: `Confirmed from reminder at ${alertDose.time}`

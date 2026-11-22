@@ -87,29 +87,66 @@ export default function Today({ isOnline = true }) {
     };
   }, []);
 
+  // Track reminder_ids yang sedang disimpan (cegah double-click)
+  const [savingIds, setSavingIds] = useState(new Set());
+
   // Set status for a specific dose item
   const handleSetStatus = async (dose, newStatus) => {
     if (!isOnline) {
       alert('You are offline, action cannot be saved.');
       return;
     }
-    setActionLoading(true);
+    // Cegah double-click pada reminder yang sama
+    if (savingIds.has(dose.reminder_id)) return;
+
+    // Optimistic update — tampilan berubah langsung
+    setSavingIds(prev => new Set([...prev, dose.reminder_id]));
+    setDoses(prev => prev.map(d =>
+      d.reminder_id === dose.reminder_id
+        ? { ...d, status: newStatus }
+        : d
+    ));
+
     try {
-      await api.createLog({
-        medication_id: dose.medication_id,
-        reminder_id: dose.reminder_id,
-        medication_name: dose.medication_name,
-        time: dose.time,
-        scheduled_at: `${new Date().toISOString().slice(0, 10)}T${dose.time}:00.000Z`,
-        status: newStatus,
-        amount: dose.amount || 1,
-        note: `Schedule ${dose.time} changed to ${newStatus}`
-      });
+      const now = new Date();
+      const [h, m] = dose.time.split(':');
+      const schedDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Number(h), Number(m), 0);
+
+      if (newStatus === 'pending' || newStatus === 'due') {
+        // Supabase hanya boleh: taken/skipped/extra
+        // Status pending/due = TIDAK ADA log → hapus log jika ada
+        if (dose.log_id) {
+          await api.deleteLog(dose.log_id);
+        }
+        // Jika tidak ada log_id, sudah pending secara default — tidak perlu action
+      } else if (dose.log_id) {
+        // Log sudah ada → update status
+        await api.updateLog(dose.log_id, {
+          status: newStatus,
+          amount: dose.amount || 1,
+          note: `Schedule ${dose.time} changed to ${newStatus}`
+        });
+      } else {
+        // Belum ada log → buat baru (hanya untuk taken/skipped)
+        await api.createLog({
+          medication_id: dose.medication_id,
+          medication_name: dose.medication_name,
+          time: dose.time,
+          scheduled_at: schedDate.toISOString(),
+          acted_at: now.toISOString(),
+          status: newStatus,
+          amount: dose.amount || 1,
+          note: `Schedule ${dose.time} changed to ${newStatus}`
+        });
+      }
+      // Refresh data dari server
       await loadData();
     } catch (err) {
+      // Rollback jika gagal
+      await loadData();
       alert(`Failed to update status: ${err.message}`);
     } finally {
-      setActionLoading(false);
+      setSavingIds(prev => { const n = new Set(prev); n.delete(dose.reminder_id); return n; });
     }
   };
 
@@ -390,7 +427,8 @@ export default function Today({ isOnline = true }) {
                 key={dose.reminder_id || idx}
                 dose={dose}
                 onSetStatus={(status) => handleSetStatus(dose, status)}
-                disabled={!isOnline || actionLoading}
+                disabled={!isOnline}
+                isSaving={savingIds.has(dose.reminder_id)}
                 isFirst={idx === 0}
                 isLast={idx === filteredDoses.length - 1}
               />
