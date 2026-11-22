@@ -1,0 +1,88 @@
+:root {
+  /* Material 3 (Material You) Theme Tokens - Inspired by medTimer */
+  --md-sys-color-primary: #295383;
+  --md-sys-color-on-primary: #ffffff;
+  --md-sys-color-primary-container: #d6e3ff;
+  --md-sys-color-on-primary-container: #001b3d;
+  
+  --md-sys-color-secondary: #535f70;
+  --md-sys-color-secondary-container: #d7e3f7;
+  --md-sys-color-on-secondary-container: #101c2b;
+
+  --md-sys-color-surface: #f7f9fe;
+  --md-sys-color-surface-dim: #edeef2;
+  --md-sys-color-surface-container: #ffffff;
+  --md-sys-color-surface-container-high: #f0f3fa;
+  --md-sys-color-surface-container-low: #f4f6fc;
+  
+  --md-sys-color-on-surface: #191c20;
+  --md-sys-color-on-surface-variant: #44474e;
+  --md-sys-color-outline: #74777f;
+  --md-sys-color-outline-variant: #c4c6d0;
+  
+  --md-sys-color-error: #ba1a1a;
+  --md-sys-color-error-container: #ffdad6;
+  --md-sys-color-on-error-container: #410002;
+  
+  --timeline-line-color: #3b5b82;
+  --timeline-node-bg: #d6e2ff;
+  --timeline-node-color: #0d2847;
+
+  /* Classic medTimer status colors */
+  --status-taken: #486581;
+  --status-skipped: #ba1a1a;
+  --status-pending: #2b5687;
+
+  --nav-h: 70px;
+  --radius-xl: 24px;
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --radius-pill: 9999px;
+
+  color-scheme: light;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--md-sys-color-on-surface);
+  background-color: var(--md-sys-color-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
+  overflow-x: hidden;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--md-sys-color-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
